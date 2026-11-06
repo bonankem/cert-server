@@ -20,9 +20,9 @@ export class DashboardService {
     const today = startOfUtcDay(new Date());
     const since = new Date(today.getTime() - (MAX_DAYS - 1) * DAY_MS);
 
-    const [responses, consented, certificatesDownloaded, downloadEvents, opcoGroups, recent, answerRows, dayRows, first] =
+    const [statusGroups, consented, certificatesDownloaded, downloadEvents, opcoGroups, recent, answerRows, dayRows, first] =
       await Promise.all([
-        this.prisma.response.count(),
+        this.prisma.response.groupBy({ by: ['status'], _count: { _all: true } }),
         this.prisma.response.count({ where: { consent: 'Yes' } }),
         this.prisma.response.count({ where: { participantDownloads: { gt: 0 } } }),
         this.prisma.downloadEvent.count(),
@@ -40,8 +40,16 @@ export class DashboardService {
         this.prisma.response.aggregate({ _min: { submittedAt: true } }),
       ]);
 
+    const byStatus = (status: 'pending' | 'approved' | 'rejected') =>
+      statusGroups.find((g) => g.status === status)?._count._all ?? 0;
+    const approved = byStatus('approved');
+    const pending = byStatus('pending');
+    const rejected = byStatus('rejected');
+    const responses = approved + pending + rejected;
+    const updateRequests = await this.prisma.responseUpdate.count({ where: { status: 'pending' } });
+
     return {
-      totals: { responses, consented, certificatesDownloaded, downloadEvents },
+      totals: { responses, approved, pending, rejected, updateRequests, consented, certificatesDownloaded, downloadEvents },
       byDay: this.fillDays(dayRows, first._min.submittedAt, today),
       byOpco: opcoGroups
         .map((g) => ({ opco: g.opco, count: g._count._all }))

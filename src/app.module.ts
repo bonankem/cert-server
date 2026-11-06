@@ -11,6 +11,7 @@ import { validateEnv } from './config/env.validation.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 import { FormConfigModule } from './form-config/form-config.module.js';
 import { HealthModule } from './health/health.module.js';
+import { MailModule } from './mail/mail.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ResponsesModule } from './responses/responses.module.js';
 
@@ -20,6 +21,7 @@ import { ResponsesModule } from './responses/responses.module.js';
     // Default: 120 requests/minute per IP; sensitive routes set stricter limits.
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
     PrismaModule,
+    MailModule,
     AuthModule,
     FormConfigModule,
     ResponsesModule,

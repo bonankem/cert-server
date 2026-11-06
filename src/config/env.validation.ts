@@ -61,6 +61,33 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsUrl({ require_tld: false })
   CORS_ORIGIN?: string;
+
+  /** Public address of the client app, used for links in emails. */
+  @IsUrl({ require_tld: false, require_protocol: true })
+  APP_URL = 'http://localhost:5173';
+
+  // ---- Email (Amazon SES). Leave the keys empty to disable sending. ----
+
+  @IsOptional()
+  @IsString()
+  AWS_REGION?: string;
+
+  @IsOptional()
+  @IsString()
+  AWS_ACCESS_KEY_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  AWS_SECRET_ACCESS_KEY?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  MAIL_FROM = 'StableNet Training <no-reply@miro.zoracom.com>';
+
+  /** Comma-separated admin addresses told about new submissions and update requests. Empty = no admin emails. */
+  @IsOptional()
+  @IsString()
+  ADMIN_NOTIFY_EMAILS?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {

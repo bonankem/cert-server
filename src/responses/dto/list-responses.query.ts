@@ -1,7 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import { IsArray, IsEnum, IsIn, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 import { OPCOS } from '../../form-config/form-config.js';
-import { Consent } from '../../generated/prisma/client.js';
+import { ApprovalStatus, Consent } from '../../generated/prisma/client.js';
 
 export const SORT_FIELDS = ['submittedAt', 'name', 'participantDownloads', 'lastDownloadedAt'] as const;
 export type SortField = (typeof SORT_FIELDS)[number];
@@ -32,6 +32,16 @@ export class ResponseFiltersQuery {
   @IsOptional()
   @IsIn(DOWNLOAD_STATUSES)
   status?: (typeof DOWNLOAD_STATUSES)[number];
+
+  /** Approval status: pending, approved or rejected. */
+  @IsOptional()
+  @IsEnum(ApprovalStatus)
+  approval?: ApprovalStatus;
+
+  /** Only responses with a pending update request. */
+  @IsOptional()
+  @IsIn(['pending'])
+  updates?: 'pending';
 }
 
 export class ListResponsesQuery extends ResponseFiltersQuery {

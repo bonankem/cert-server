@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsEmail,
   IsEnum,
   IsIn,
   IsObject,
@@ -46,6 +47,12 @@ export class SubmitResponseDto {
   @MaxLength(120)
   @Matches(/^\S+(\s\S+)+$/, { message: 'Enter your first name and surname.' })
   fullName!: string;
+
+  /** Where we email the certificate once approved. */
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
+  @IsEmail({}, { message: 'Enter a valid email address.' })
+  @MaxLength(254)
+  email!: string;
 
   @IsIn(OPCOS, { message: 'Choose your OpCo from the list.' })
   opco!: string;

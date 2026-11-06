@@ -4,7 +4,7 @@ import { Public } from '../common/decorators/public.decorator.js';
 import { DownloadSource } from '../generated/prisma/client.js';
 import { SubmitResponseDto } from './dto/submit-response.dto.js';
 import { ResponsesService } from './responses.service.js';
-import type { SubmittedResponse, VerifyResult } from './responses.types.js';
+import type { SubmissionStatus, SubmitResult, VerifyResult } from './responses.types.js';
 
 const ONE_HOUR = 60 * 60 * 1000;
 
@@ -16,8 +16,15 @@ export class PublicResponsesController {
 
   @Throttle({ default: { limit: 20, ttl: ONE_HOUR } })
   @Post('responses')
-  submit(@Body() dto: SubmitResponseDto): Promise<SubmittedResponse> {
+  submit(@Body() dto: SubmitResponseDto): Promise<SubmitResult> {
     return this.responses.submit(dto);
+  }
+
+  /** The participant's private status link: pending, approved (with certificate) or rejected. */
+  @Throttle({ default: { limit: 120, ttl: ONE_HOUR } })
+  @Get('certificates/status/:token')
+  status(@Param('token') token: string): Promise<SubmissionStatus> {
+    return this.responses.statusByToken(token.slice(0, 64));
   }
 
   /**

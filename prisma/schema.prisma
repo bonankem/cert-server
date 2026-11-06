@@ -38,6 +38,9 @@ model User {
   sessions          Session[]
   downloads         DownloadEvent[]
   settingsUpdates   CertificateSettings[]
+  reviewedResponses Response[]            @relation("ResponseReviewer")
+  rosterEntries     RosterEntry[]
+  reviewedUpdates   ResponseUpdate[]      @relation("UpdateReviewer")
 
   @@map("users")
 }
@@ -59,10 +62,22 @@ model Session {
   @@map("sessions")
 }
 
+enum ApprovalStatus {
+  pending
+  approved
+  rejected
+}
+
 model Response {
   id               String   @id @default(uuid()) @db.Uuid
+  /// Generated on submit, but only shown to the participant and accepted by
+  /// verification once the response is approved.
   certId           String   @unique @map("cert_id")
   name             String
+  /// Where approval / rejection emails go. Unique: one response, and so one
+  /// certificate, per email address. Later submissions from the same address
+  /// replace a pending one or become update requests.
+  email            String   @unique
   opco             String
   consent          Consent
   /// { [questionId]: chosen option }
@@ -75,8 +90,21 @@ model Response {
   participantDownloads Int       @default(0) @map("participant_downloads")
   lastDownloadedAt     DateTime? @map("last_downloaded_at")
 
-  downloads DownloadEvent[]
+  /// Nothing is issued until approved (by an admin, or the participant list).
+  status          ApprovalStatus @default(pending)
+  /// Unguessable token behind the participant's private status link.
+  accessToken     String?        @unique @map("access_token")
+  reviewedAt      DateTime?      @map("reviewed_at")
+  reviewedById    String?        @map("reviewed_by_id") @db.Uuid
+  reviewedBy      User?          @relation("ResponseReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  /// True when approved automatically from the participant list.
+  autoApproved    Boolean        @default(false) @map("auto_approved")
+  rejectionReason String?        @map("rejection_reason")
 
+  downloads DownloadEvent[]
+  updates   ResponseUpdate[]
+
+  @@index([status])
   @@index([submittedAt])
   @@index([opco])
   @@index([participantDownloads])
@@ -108,9 +136,51 @@ model CertificateSettings {
   signature   String   @default("")
   /// Default certificate design: "classic" (Minimalist) or "modern" (Styled).
   designVariant String @default("classic") @map("design_variant")
+  /// Admin addresses emailed about new submissions and update requests (admin-only; never sent publicly).
+  notifyEmails  String[] @default([]) @map("notify_emails")
   updatedAt   DateTime @updatedAt @map("updated_at")
   updatedById String?  @map("updated_by_id") @db.Uuid
   updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("certificate_settings")
+}
+
+/// Expected participants. A submission whose email (or name) matches an
+/// entry is approved automatically; everyone else waits for an admin.
+model RosterEntry {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @default("")
+  /// Lower-cased; null when only a name was given.
+  email       String?  @unique
+  /// Lower-cased, accents removed, words sorted — so "Doe John" matches "John Doe".
+  nameKey     String   @default("") @map("name_key")
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([nameKey])
+  @@map("roster_entries")
+}
+
+/// A change a participant asked for after their certificate was approved
+/// (they submitted the form again with the same email). It only replaces the
+/// response's details once an admin approves it; the certificate keeps its ID.
+model ResponseUpdate {
+  id              String         @id @default(uuid()) @db.Uuid
+  responseId      String         @map("response_id") @db.Uuid
+  response        Response       @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  name            String
+  opco            String
+  consent         Consent
+  answers         Json           @db.JsonB
+  status          ApprovalStatus @default(pending)
+  requestedAt     DateTime       @default(now()) @map("requested_at")
+  reviewedAt      DateTime?      @map("reviewed_at")
+  reviewedById    String?        @map("reviewed_by_id") @db.Uuid
+  reviewedBy      User?          @relation("UpdateReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  rejectionReason String?        @map("rejection_reason")
+
+  @@index([responseId, status])
+  @@index([status])
+  @@map("response_updates")
 }

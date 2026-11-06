@@ -14,6 +14,12 @@ export interface QuestionStats {
 export interface DashboardStats {
   totals: {
     responses: number;
+    /** Approval status split of `responses`. */
+    approved: number;
+    pending: number;
+    rejected: number;
+    /** Approved participants asking to change their details. */
+    updateRequests: number;
     consented: number;
     /** Certificates the participant downloaded at least once. */
     certificatesDownloaded: number;
