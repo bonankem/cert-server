@@ -1,0 +1,114 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  runtime             = "nodejs"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+}
+
+enum Consent {
+  Yes
+  No
+}
+
+enum DownloadSource {
+  participant
+  admin
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  /// Always stored lower-cased.
+  email        String    @unique
+  name         String
+  passwordHash String    @map("password_hash")
+  role         Role      @default(ADMIN)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  lastLoginAt  DateTime? @map("last_login_at")
+
+  sessions          Session[]
+  downloads         DownloadEvent[]
+  settingsUpdates   CertificateSettings[]
+
+  @@map("users")
+}
+
+/// Server-side session. `id` is the SHA-256 of the cookie token, so a
+/// leaked database can't be used to hijack sessions.
+model Session {
+  id         String   @id
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+  expiresAt  DateTime @map("expires_at")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+  userAgent  String?  @map("user_agent")
+  ip         String?
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Response {
+  id               String   @id @default(uuid()) @db.Uuid
+  certId           String   @unique @map("cert_id")
+  name             String
+  opco             String
+  consent          Consent
+  /// { [questionId]: chosen option }
+  answers          Json     @db.JsonB
+  verificationCode String   @unique @map("verification_code")
+  submittedAt      DateTime @default(now()) @map("submitted_at")
+
+  /// Counter cache of participant downloads (admin downloads don't count),
+  /// kept in sync in the same transaction that logs the event.
+  participantDownloads Int       @default(0) @map("participant_downloads")
+  lastDownloadedAt     DateTime? @map("last_downloaded_at")
+
+  downloads DownloadEvent[]
+
+  @@index([submittedAt])
+  @@index([opco])
+  @@index([participantDownloads])
+  @@map("responses")
+}
+
+model DownloadEvent {
+  id           String         @id @default(uuid()) @db.Uuid
+  responseId   String         @map("response_id") @db.Uuid
+  response     Response       @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  source       DownloadSource
+  downloadedAt DateTime       @default(now()) @map("downloaded_at")
+  /// The admin who downloaded it (null for participants).
+  userId       String?        @map("user_id") @db.Uuid
+  user         User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([responseId, downloadedAt])
+  @@map("download_events")
+}
+
+/// Single-row table (id = 1).
+model CertificateSettings {
+  id          Int      @id @default(1)
+  trainerName String   @default("") @map("trainer_name")
+  legacyDates String   @default("") @map("dates")
+  startDate   String   @default("") @map("start_date")
+  endDate     String   @default("") @map("end_date")
+  /// PNG data URL.
+  signature   String   @default("")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("certificate_settings")
+}
