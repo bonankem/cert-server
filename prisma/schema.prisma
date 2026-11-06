@@ -106,6 +106,8 @@ model CertificateSettings {
   endDate     String   @default("") @map("end_date")
   /// PNG data URL.
   signature   String   @default("")
+  /// Default certificate design: "classic" (Minimalist) or "modern" (Styled).
+  designVariant String @default("classic") @map("design_variant")
   updatedAt   DateTime @updatedAt @map("updated_at")
   updatedById String?  @map("updated_by_id") @db.Uuid
   updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)

@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { CertificateSettings } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type { UpdateCertificateSettingsDto } from './dto/update-certificate-settings.dto.js';
+import type { DesignVariant, UpdateCertificateSettingsDto } from './dto/update-certificate-settings.dto.js';
 
 const SINGLETON_ID = 1;
 
@@ -11,6 +11,7 @@ export interface CertificateSettingsView {
   startDate: string;
   endDate: string;
   signature: string;
+  designVariant: DesignVariant;
   updatedAt: string | null;
 }
 
@@ -20,6 +21,7 @@ const toView = (s: CertificateSettings | null): CertificateSettingsView => ({
   startDate: s?.startDate ?? '',
   endDate: s?.endDate ?? '',
   signature: s?.signature ?? '',
+  designVariant: s?.designVariant === 'modern' ? 'modern' : 'classic',
   updatedAt: s?.updatedAt.toISOString() ?? null,
 });
 
@@ -41,6 +43,7 @@ export class CertificateSettingsService {
       startDate: dto.startDate ?? '',
       endDate: dto.endDate ?? '',
       signature: dto.signature,
+      ...(dto.designVariant && { designVariant: dto.designVariant }),
       updatedById: userId,
     };
     const settings = await this.prisma.certificateSettings.upsert({
