@@ -44,9 +44,19 @@ export class EnvironmentVariables {
   @IsBoolean()
   COOKIE_SECURE = false;
 
-  @Transform(toBoolean)
-  @IsBoolean()
-  TRUST_PROXY = false;
+  /**
+   * How many reverse-proxy hops sit in front of the app, so req.ip is the real
+   * client. 0/false = none, true = 1. Behind Vercel → Render, use 2.
+   */
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === true || value === 'true') return 1;
+    if (value === false || value === 'false' || value === undefined || value === '') return 0;
+    return Number(value);
+  })
+  @IsInt()
+  @Min(0)
+  @Max(10)
+  TRUST_PROXY = 0;
 
   @IsOptional()
   @IsUrl({ require_tld: false })

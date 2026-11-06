@@ -19,7 +19,8 @@ async function bootstrap(): Promise<void> {
   app.use(helmet());
   app.use(cookieParser());
 
-  if (config.get('TRUST_PROXY', { infer: true })) app.set('trust proxy', 1);
+  const proxyHops = config.get('TRUST_PROXY', { infer: true });
+  if (proxyHops > 0) app.set('trust proxy', proxyHops);
 
   const corsOrigin = config.get('CORS_ORIGIN', { infer: true });
   if (corsOrigin) app.enableCors({ origin: corsOrigin, credentials: true });
